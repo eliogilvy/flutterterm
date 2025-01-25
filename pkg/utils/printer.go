@@ -19,3 +19,7 @@ func PrintInfo(s string) {
 func PrintSuccess(s string) {
 	color.Green(s)
 }
+
+func PrintWarning(s string) {
+	color.Yellow(s)
+}

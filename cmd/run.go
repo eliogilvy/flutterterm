@@ -19,18 +19,24 @@ var runCmd = &cobra.Command{
 	Short: "A guided flutter run command",
 	Long:  ``,
 	Run: func(cmd *cobra.Command, args []string) {
-		if !assertRootPath() {
+		shouldForce, err := cmd.Flags().GetBool("force")
+		if !assertRootPath() && !shouldForce {
+			utils.PrintError("pubspec.yaml not found. Make sure you are in a flutter directory")
 			return
 		}
 
-		utils.PrintInfo(fmt.Sprintf("Flutter directory detected. Getting devices\n"))
+		if shouldForce {
+			utils.PrintWarning("\n** Force is true, bypassing **\n\n")
+		}
+
+		utils.PrintInfo(fmt.Sprintf("Flutter directory detected. Getting devices...\n\n"))
 
 		configs, err := utils.GetConfigs()
 
 		// Add a default run config if none exist
 		if len(configs) == 0 {
 			utils.PrintInfo("No configs found, using default\n\n")
-			help := fmt.Sprintf("Try creating a \"%s\" file or adding a config to an already created one", utils.ConfigPath)
+			help := fmt.Sprintf("Try creating a \"%s\" file or adding a config to an already created one\n\n", utils.ConfigPath)
 			utils.PrintHelp(help)
 			defaultConfig, err := utils.DefaultConfig()
 			if err != nil {
@@ -38,8 +44,6 @@ var runCmd = &cobra.Command{
 				return
 			}
 			configs = append(configs, defaultConfig)
-		} else {
-			utils.PrintSuccess(fmt.Sprintf("%d configs found\n\n", len(configs)))
 		}
 
 		p := tea.NewProgram(ui.InitialRunModel(configs))
@@ -82,7 +86,7 @@ func setupAndRun(m ui.RunModel) {
 		args = append(args, "-t", config.Target)
 	}
 	if config.Mode != "" {
-        arg := fmt.Sprintf("--%s", config.Mode)
+		arg := fmt.Sprintf("--%s", config.Mode)
 		args = append(args, arg)
 	}
 	if config.Flavor != "" {
@@ -119,7 +123,6 @@ func assertRootPath() bool {
 	_, err := os.Stat(pubspec)
 
 	if err != nil {
-		utils.PrintError("pubspec.yaml not found. Make sure you are in a flutter directory")
 		return false
 	}
 
@@ -128,4 +131,6 @@ func assertRootPath() bool {
 
 func init() {
 	rootCmd.AddCommand(runCmd)
+	runCmd.Flags().BoolP("force", "f", false, "For bypassing flutter directory assertion")
+	runCmd.Flags().MarkHidden("force")
 }

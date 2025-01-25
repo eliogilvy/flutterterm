@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"strings"
 
+	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/lipgloss"
 )
@@ -11,6 +12,18 @@ import (
 type Device struct {
 	Name string `json:"name"`
 	ID   string `json:"id"`
+}
+
+func (d Device) FilterValue() string {
+	return d.Name
+}
+
+func (d Device) Title() string {
+	return d.Name
+}
+
+func (d Device) Description() string {
+	return d.ID
 }
 
 func ParseDevices(bytes []byte) ([]Device, error) {
@@ -64,6 +77,24 @@ func ParseEmulators(bytes []byte) ([]Device, error) {
 	return devices, nil
 }
 
+func GetDeviceList(devices []Device) list.Model {
+	var items []list.Item
+	for _, device := range devices {
+		item := device
+		items = append(items, item)
+	}
+
+	l := list.New(items, list.NewDefaultDelegate(), 15, len(devices)*2+10)
+
+	l.Title = "Devices"
+
+	l.KeyMap.CursorDown.SetEnabled(true)
+	l.KeyMap.CursorUp.SetEnabled(true)
+	l.InfiniteScrolling = true
+
+	return l
+}
+
 func GetDeviceTable(devices []Device) table.Model {
 	c := []table.Column{
 		{Title: "Name", Width: 20},
@@ -72,21 +103,19 @@ func GetDeviceTable(devices []Device) table.Model {
 
 	var r []table.Row
 
-	for _, device := range devices {
-		row := table.Row{
-			device.Name,
-			device.ID,
-		}
-
-		r = append(r, row)
-	}
-
 	return table.New(
 		table.WithColumns(c),
 		table.WithRows(r),
 		table.WithFocused(true),
-		table.WithHeight(len(devices)+1),
-		table.WithStyles(table.Styles{Header: lipgloss.NewStyle().Padding(1, 0),
-			Selected: lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("212"))}),
+		// table.WithHeight(len(devices)+1),
+		table.WithHeight(15),
+		// Cool style
+		table.WithStyles(table.Styles{
+			// Cool header
+			Header: lipgloss.NewStyle().Bold(true).Padding(0, 4).Border(lipgloss.Border{Bottom: lipgloss.NormalBorder().Bottom}),
+			// Background color soft purple
+			Selected: lipgloss.NewStyle().Bold(true).Background(lipgloss.Color("#a448a4")),
+			Cell:     lipgloss.NewStyle().Padding(0, 4).Border(lipgloss.Border{Top: "-", MiddleBottom: "-"}, true),
+		}),
 	)
 }

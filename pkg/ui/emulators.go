@@ -79,17 +79,6 @@ func (m EmulatorModel) View() string {
 	}
 	switch m.state {
 	case view:
-
-		// s += "Select an emulator\n\n"
-		//
-		// for i, device := range m.devices {
-		// 	cursor := " "
-		// 	if m.cursor.Index() == i {
-		// 		cursor = utils.CursorChar
-		// 	}
-		// 	s += fmt.Sprintf("%s %s\n", cursor, device.Name)
-		// }
-
 		s += m.table.View()
 
 		s += "\n"

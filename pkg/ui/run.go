@@ -6,7 +6,9 @@ import (
 	"fmt"
 
 	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/table"
+	"github.com/charmbracelet/lipgloss"
+	// "github.com/charmbracelet/bubbles/table"
+	"github.com/charmbracelet/bubbles/list"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
@@ -19,7 +21,7 @@ type RunModel struct {
 	Selected_config utils.FlutterRunConfig
 	state           state
 	spinner         spinner.Model
-	table           table.Model
+	list            list.Model
 }
 
 type devicestage int
@@ -29,6 +31,8 @@ const (
 	config
 	_length
 )
+
+var docStyle = lipgloss.NewStyle().Margin(1, 2)
 
 func InitialRunModel(configs []utils.FlutterRunConfig) RunModel {
 	return RunModel{
@@ -46,6 +50,12 @@ func (m RunModel) Init() tea.Cmd {
 func (m RunModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
+	case tea.WindowSizeMsg:
+		if m.stage == device && m.state == view {
+			h, v := docStyle.GetFrameSize()
+			m.list.SetSize(msg.Width-h, msg.Height-v)
+		}
+
 	case tea.KeyMsg:
 
 		switch msg.String() {
@@ -58,10 +68,10 @@ func (m RunModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case "up", "k":
 			m.cursor.Previous()
-			m.table.SetCursor(m.cursor.Index())
+			m.list.CursorUp()
 		case "down", "j":
 			m.cursor.Next()
-			m.table.SetCursor(m.cursor.Index())
+			m.list.CursorDown()
 		case "left", "h":
 			m, err := m.back()
 			if err == nil {
@@ -78,8 +88,7 @@ func (m RunModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.devices = msg
 		m.cursor = utils.NewNavigator(0, len(m.devices))
 		m.state = view
-		m.table = utils.GetDeviceTable(m.devices)
-		m.table.SetCursor(m.cursor.Index())
+		m.list = utils.GetDeviceList(m.devices)
 		return m, nil
 	case spinner.TickMsg:
 		var cmd tea.Cmd
@@ -104,7 +113,7 @@ func (m RunModel) doNextThing() (RunModel, tea.Cmd) {
 	var cmd tea.Cmd
 	switch m.stage {
 	case device:
-		m.Selected_device = m.devices[m.cursor.Index()]
+		m.Selected_device = m.devices[m.list.Index()]
 		m.cursor.Reset(len(m.configs))
 		m.stage = config
 		cmd = nil
@@ -129,19 +138,9 @@ func (m RunModel) View() string {
 	case view:
 		switch m.stage {
 		case device:
-			// s += "Select a device\n\n"
-			//
-			// for i, device := range m.devices {
-			// 	cursor := " "
-			// 	if m.cursor.Index() == i {
-			// 		cursor = utils.CursorChar
-			// 	}
-			// 	s += fmt.Sprintf("%s %s - %s\n", cursor, device.Name, device.ID)
-			// }
-
-			s += m.table.View()
-			s += "\n"
+			return docStyle.Render(m.list.View())
 		case config:
+			s += fmt.Sprintf("Device: %s\n\n", m.Selected_device.Name)
 			s += "Select a config\n\n"
 			for i, config := range m.configs {
 				cursor := " "
@@ -151,9 +150,6 @@ func (m RunModel) View() string {
 				s += fmt.Sprintf("%s %s\n", cursor, config.Name)
 			}
 		}
-
-		s += fmt.Sprintf("\n%d/%d", m.stage+1, _length)
-		s += quitAndHelpMessage
 		return s
 	case getting:
 		spinner := m.spinner.View()
