@@ -5,23 +5,21 @@ import (
 	"flutterterm/pkg/utils"
 	"fmt"
 
-	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/lipgloss"
-	// "github.com/charmbracelet/bubbles/table"
 	"github.com/charmbracelet/bubbles/list"
+	"github.com/charmbracelet/bubbles/spinner"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 type RunModel struct {
 	devices         []utils.Device
 	configs         []utils.FlutterRunConfig
-	cursor          utils.Navigator
 	stage           devicestage
 	Selected_device utils.Device
 	Selected_config utils.FlutterRunConfig
 	state           state
 	spinner         spinner.Model
-	list            list.Model
+	deviceList      list.Model
+	configList      list.Model
 }
 
 type devicestage int
@@ -32,14 +30,13 @@ const (
 	_length
 )
 
-var docStyle = lipgloss.NewStyle().Margin(1, 2)
-
 func InitialRunModel(configs []utils.FlutterRunConfig) RunModel {
 	return RunModel{
-		configs: configs,
-		stage:   device,
-		state:   getting,
-		spinner: getSpinner(),
+		configs:    configs,
+		stage:      device,
+		state:      getting,
+		spinner:    getSpinner(),
+		configList: utils.GetConfigList(configs),
 	}
 }
 
@@ -51,32 +48,27 @@ func (m RunModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
 	case tea.WindowSizeMsg:
+		h, v := DocStyle.GetFrameSize()
 		if m.stage == device && m.state == view {
-			h, v := docStyle.GetFrameSize()
-			m.list.SetSize(msg.Width-h, msg.Height-v)
+			m.deviceList.SetSize(msg.Width-h, msg.Height-v)
 		}
+		m.configList.SetSize(msg.Width-h, msg.Height-v)
 
 	case tea.KeyMsg:
 
 		switch msg.String() {
 
 		case "?":
-			m.cursor.ToggleHelp()
+			// TODO
 
 		case "ctrl+c", "q":
 			return m, tea.Quit
-
 		case "up", "k":
-			m.cursor.Previous()
-			m.list.CursorUp()
+			m = m.goUp()
 		case "down", "j":
-			m.cursor.Next()
-			m.list.CursorDown()
+			m = m.goDown()
 		case "left", "h":
-			m, err := m.back()
-			if err == nil {
-				m.cursor = utils.NewNavigator(0, len(m.devices))
-			}
+			m, _ := m.back()
 			return m, nil
 		case "enter":
 			m, cmd := m.doNextThing()
@@ -84,12 +76,11 @@ func (m RunModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 		return m, nil
 
+	case DeviceSelectedMsg:
 	case devicesComplete:
 		m.devices = msg
-		m.cursor = utils.NewNavigator(0, len(m.devices))
 		m.state = view
-		m.list = utils.GetDeviceList(m.devices)
-		return m, nil
+		m.deviceList = utils.GetDeviceList(m.devices)
 	case spinner.TickMsg:
 		var cmd tea.Cmd
 		m.spinner, cmd = m.spinner.Update(msg)
@@ -99,10 +90,32 @@ func (m RunModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, nil
 }
 
+func (m RunModel) goUp() RunModel {
+	switch m.stage {
+	case config:
+		m.configList.CursorUp()
+	case device:
+		m.deviceList.CursorUp()
+	default: // Do nothng
+	}
+	return m
+}
+
+func (m RunModel) goDown() RunModel {
+	switch m.stage {
+	case config:
+		m.configList.CursorDown()
+	case device:
+		m.deviceList.CursorDown()
+	default: // Do nothng
+	}
+	return m
+}
+
 // Go back in the process
 func (m RunModel) back() (RunModel, error) {
 	if m.stage == device {
-		return m, errors.New("Couldn't go back")
+		return m, errors.New("Already at beginning")
 	}
 	m.stage = device
 	return m, nil
@@ -113,12 +126,11 @@ func (m RunModel) doNextThing() (RunModel, tea.Cmd) {
 	var cmd tea.Cmd
 	switch m.stage {
 	case device:
-		m.Selected_device = m.devices[m.list.Index()]
-		m.cursor.Reset(len(m.configs))
+		m.Selected_device = m.devices[m.deviceList.Index()]
 		m.stage = config
-		cmd = nil
+		cmd = DeviceSelected
 	case config:
-		m.Selected_config = m.configs[m.cursor.Index()]
+		m.Selected_config = m.configs[m.configList.Index()]
 		cmd = tea.Quit
 	}
 	return m, cmd
@@ -131,24 +143,14 @@ func (m RunModel) IsComplete() bool {
 
 func (m RunModel) View() string {
 	var s string = ""
-	if m.cursor.ShouldShowHelp() {
-		s += controlsHelpMessage
-	}
 	switch m.state {
 	case view:
 		switch m.stage {
 		case device:
-			return docStyle.Render(m.list.View())
+			s += DocStyle.Render(m.deviceList.View())
 		case config:
 			s += fmt.Sprintf("Device: %s\n\n", m.Selected_device.Name)
-			s += "Select a config\n\n"
-			for i, config := range m.configs {
-				cursor := " "
-				if m.cursor.Index() == i {
-					cursor = utils.CursorChar
-				}
-				s += fmt.Sprintf("%s %s\n", cursor, config.Name)
-			}
+			s += DocStyle.Render(m.configList.View())
 		}
 		return s
 	case getting:

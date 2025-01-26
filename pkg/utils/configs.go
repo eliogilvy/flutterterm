@@ -7,6 +7,8 @@ import (
 	"io"
 	"os"
 	"strings"
+
+	"github.com/charmbracelet/bubbles/list"
 )
 
 const (
@@ -31,6 +33,42 @@ type FlutterRunConfig struct {
 	Flavor             string `json:"flavor"`
 	Target             string `json:"target"`
 	DartDefineFromFile string `json:"dart_define_from_file"`
+}
+
+func (config FlutterRunConfig) GetArgs(deviceID string) []string {
+
+	args := []string{"run"}
+
+	if deviceID != "" {
+		args = append(args, "-d", deviceID)
+	}
+	if config.Target != "" {
+		args = append(args, "-t", config.Target)
+	}
+	if config.Mode != "" {
+		arg := fmt.Sprintf("--%s", config.Mode)
+		args = append(args, arg)
+	}
+	if config.Flavor != "" {
+		args = append(args, "--flavor", config.Flavor)
+	}
+	if config.DartDefineFromFile != "" {
+		args = append(args, "--dart-define-from-file", config.DartDefineFromFile)
+	}
+
+	return args
+}
+
+func (c FlutterRunConfig) FilterValue() string {
+	return c.Name
+}
+
+func (c FlutterRunConfig) Title() string {
+	return c.Name
+}
+
+func (c FlutterRunConfig) Description() string {
+	return strings.Join(c.GetArgs(""), " ")
 }
 
 // Makes sure config is properly configured
@@ -121,4 +159,17 @@ func findDefaultTarget() (string, error) {
 	}
 	err := errors.New("main.dart file not found")
 	return "", err
+}
+
+func GetConfigList(configs []FlutterRunConfig) list.Model {
+	var items []list.Item
+	for _, device := range configs {
+		item := device
+		items = append(items, item)
+	}
+
+	l := GetList(items)
+	l.Title = "Configs"
+
+	return l
 }

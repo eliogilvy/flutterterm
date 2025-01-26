@@ -84,13 +84,9 @@ func GetDeviceList(devices []Device) list.Model {
 		items = append(items, item)
 	}
 
-	l := list.New(items, list.NewDefaultDelegate(), 15, len(devices)*2+10)
-
+	l := GetList(items)
 	l.Title = "Devices"
-
-	l.KeyMap.CursorDown.SetEnabled(true)
-	l.KeyMap.CursorUp.SetEnabled(true)
-	l.InfiniteScrolling = true
+	l.SetSize(100, 30)
 
 	return l
 }

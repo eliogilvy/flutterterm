@@ -17,7 +17,7 @@ var emulatorsCmd = &cobra.Command{
 	Run: func(cmd *cobra.Command, args []string) {
 		isCold, err := cmd.Flags().GetBool("cold")
 
-		p := tea.NewProgram(ui.InitialEmulatorModel(isCold))
+		p := tea.NewProgram(ui.InitialEmulatorModel(isCold), tea.WithAltScreen())
 
 		_, err = p.Run()
 

@@ -46,7 +46,7 @@ var runCmd = &cobra.Command{
 			configs = append(configs, defaultConfig)
 		}
 
-		p := tea.NewProgram(ui.InitialRunModel(configs))
+		p := tea.NewProgram(ui.InitialRunModel(configs), tea.WithAltScreen())
 
 		model, err := p.Run()
 
@@ -70,7 +70,7 @@ func setupAndRun(m ui.RunModel) {
 	fmt.Printf("Running %s on %s\n\n", m.Selected_config.Name, m.Selected_device.Name)
 
 	// Device
-	device := m.Selected_device.ID
+	deviceID := m.Selected_device.ID
 	config := m.Selected_config
 
 	err := config.AssertConfig()
@@ -81,20 +81,7 @@ func setupAndRun(m ui.RunModel) {
 		return
 	}
 
-	args := []string{"run", "-d", device}
-	if config.Target != "" {
-		args = append(args, "-t", config.Target)
-	}
-	if config.Mode != "" {
-		arg := fmt.Sprintf("--%s", config.Mode)
-		args = append(args, arg)
-	}
-	if config.Flavor != "" {
-		args = append(args, "--flavor", config.Flavor)
-	}
-	if config.DartDefineFromFile != "" {
-		args = append(args, "--dart-define-from-file", config.DartDefineFromFile)
-	}
+    args := config.GetArgs(deviceID)
 
 	cmd := utils.FlutterRun(args)
 

@@ -4,19 +4,18 @@ import (
 	"flutterterm/pkg/utils"
 	"fmt"
 
+	"github.com/charmbracelet/bubbles/list"
 	"github.com/charmbracelet/bubbles/spinner"
-	"github.com/charmbracelet/bubbles/table"
 	tea "github.com/charmbracelet/bubbletea"
 )
 
 type EmulatorModel struct {
 	devices          []utils.Device
-	cursor           utils.Navigator
 	selectedEmulator utils.Device
 	state            state
 	spinner          spinner.Model
 	isCold           bool // Cold start
-	table            table.Model
+	list             list.Model
 }
 
 func InitialEmulatorModel(isCold bool) EmulatorModel {
@@ -36,19 +35,16 @@ func (m EmulatorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "?":
-			m.cursor.ToggleHelp()
 		case "ctrl+c", "q":
 			return m, tea.Quit
 		case "up", "k":
-			m.cursor.Previous()
-			m.table.SetCursor(m.cursor.Index())
+			m.list.CursorUp()
 			return m, nil
 		case "down", "j":
-			m.cursor.Next()
-			m.table.SetCursor(m.cursor.Index())
+			m.list.CursorDown()
 			return m, nil
 		case "enter":
-			m.selectedEmulator = m.devices[m.cursor.Index()]
+			m.selectedEmulator = m.devices[m.list.Index()]
 			m.state = running
 			return m, launchEmulator(m)
 		}
@@ -59,8 +55,7 @@ func (m EmulatorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case devicesComplete:
 		m.state = view
 		m.devices = msg
-		m.cursor = utils.NewNavigator(0, len(m.devices))
-		m.table = utils.GetDeviceTable(m.devices)
+		m.list = utils.GetDeviceList(m.devices)
 		return m, nil
 	case runningComplete:
 		return m, tea.Quit
@@ -73,20 +68,9 @@ func (m EmulatorModel) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m EmulatorModel) View() string {
-	var s string = ""
-	if m.cursor.ShouldShowHelp() {
-		s += controlsHelpMessage
-	}
 	switch m.state {
 	case view:
-		s += m.table.View()
-
-		s += "\n"
-
-		s += "\n1/1\n\n"
-
-		s += quitAndHelpMessage
-		return s
+		return DocStyle.Render(m.list.View())
 	case getting:
 		spinner := m.spinner.View()
 		return fmt.Sprintf("%s Getting emulators %s", spinner, spinner)
