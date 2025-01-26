@@ -12,5 +12,7 @@ func GetList(items []list.Item) list.Model {
 	l.KeyMap.CursorUp.SetEnabled(true)
 	l.InfiniteScrolling = true
 
+	l.SetSize(100, len(items)*7)
+
 	return l
 }

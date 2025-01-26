@@ -86,8 +86,6 @@ func GetDeviceList(devices []Device) list.Model {
 
 	l := GetList(items)
 	l.Title = "Devices"
-	l.SetSize(100, 30)
-
 	return l
 }
 
